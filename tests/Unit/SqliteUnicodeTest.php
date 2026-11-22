@@ -30,6 +30,16 @@ class SqliteUnicodeTest extends TestCase
         $this->assertNull(SqliteUnicode::matches(null, 'a'));
     }
 
+    public function test_like_tolerates_invalid_utf8_operands(): void
+    {
+        // "П" with its continuation byte replaced, as macOS parse_url() does to raw UTF-8.
+        $broken = "\xD0_оиск";
+
+        $this->assertFalse(SqliteUnicode::matches('%'.$broken.'%', 'ПоискСтудия'));
+        $this->assertTrue(SqliteUnicode::matches('%'.$broken.'%', 'x'.$broken.'y'));
+        $this->assertTrue(SqliteUnicode::matches('%оиск%', "\xD0_оиск"));
+    }
+
     public function test_case_functions_handle_multibyte_values(): void
     {
         $this->assertSame('журнал', SqliteUnicode::lower('ЖУРНАЛ'));

@@ -33,10 +33,12 @@ final class SqliteUnicode
             return null;
         }
 
-        $regex = self::regex($pattern, $escape);
-        $matched = preg_match('/^'.$regex.'$/uis', $value);
+        // Invalid UTF-8 (e.g. a crafted query string) cannot be compiled with /u and
+        // would raise a warning, so such operands fall back to byte-wise matching.
+        $unicode = mb_check_encoding($pattern, 'UTF-8') && mb_check_encoding($value, 'UTF-8');
+        $regex = self::regex($pattern, $escape, $unicode);
 
-        return ($matched === false ? preg_match('/^'.$regex.'$/is', $value) : $matched) === 1;
+        return preg_match('/^'.$regex.'$/is'.($unicode ? 'u' : ''), $value) === 1;
     }
 
     public static function lower(?string $value): ?string
@@ -49,12 +51,14 @@ final class SqliteUnicode
         return $value === null ? null : mb_strtoupper($value);
     }
 
-    private static function regex(string $pattern, ?string $escape): string
+    private static function regex(string $pattern, ?string $escape, bool $unicode): string
     {
-        $escapeChar = ($escape === null || $escape === '') ? null : mb_substr($escape, 0, 1);
+        $escapeChar = ($escape === null || $escape === '')
+            ? null
+            : ($unicode ? mb_substr($escape, 0, 1) : $escape[0]);
 
         $compiled = array_reduce(
-            mb_str_split($pattern),
+            $unicode ? mb_str_split($pattern) : str_split($pattern),
             static function (array $carry, string $char) use ($escapeChar): array {
                 if ($carry['escaped']) {
                     return ['regex' => $carry['regex'].preg_quote($char, '/'), 'escaped' => false];

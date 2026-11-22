@@ -335,7 +335,7 @@ class AdminOpsTest extends TestCase
         ]);
 
         $this->actingAs($admin, 'admin')
-            ->get('/admin/search?q=Поиск')
+            ->get('/admin/search?'.http_build_query(['q' => 'Поиск']))
             ->assertOk()
             ->assertSee('ПоискСтудия');
 
